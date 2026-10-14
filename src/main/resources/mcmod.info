@@ -1,0 +1,16 @@
+[
+{
+  "modid": "new_line_transcript",
+  "name": "New Line Transcript",
+  "description": "new_line_transcript helper mod.",
+  "version": "${version}",
+  "mcversion": "${mcversion}",
+  "url": "",
+  "updateUrl": "",
+  "authorList": [],
+  "credits": "",
+  "logoFile": "",
+  "screenshots": [],
+  "dependencies": []
+}
+]
