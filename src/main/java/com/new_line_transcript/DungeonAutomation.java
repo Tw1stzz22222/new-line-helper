@@ -98,9 +98,21 @@ public class DungeonAutomation {
         return state == State.FLY_TO_C || state == State.LEAVE;
     }
 
+    // True while flying between waypoints. Opening any GUI pauses player movement,
+    // which would stall the flight, so we auto-close unexpected screens here.
+    private static boolean isFlyingState() {
+        return state == State.FLY_TO_A || state == State.FLY_TO_B || state == State.FLY_TO_C;
+    }
+
     public static void tick(Minecraft mc) {
         if (mc.player == null || mc.world == null) return;
         long now = System.currentTimeMillis();
+
+        // 飞行阶段自动关闭意外打开的界面（背包E/设置ESC/聊天T），否则移动暂停会打断飞行。
+        if (isFlyingState() && mc.currentScreen != null) {
+            LOG.info("[auto] closing unexpected GUI {} during flight", mc.currentScreen.getClass().getSimpleName());
+            mc.displayGuiScreen(null);
+        }
 
         switch (state) {
             case FIND_SIGN: {
