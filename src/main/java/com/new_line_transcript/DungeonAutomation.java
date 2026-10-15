@@ -44,7 +44,7 @@ public class DungeonAutomation {
     private static final long WAIT_AT_A = 1000L;          // 1s at waypoint A
     private static final long WAIT_AT_B = 8000L;          // 8s at waypoint B
     private static final long REWARD_TIMEOUT = 60000L;    // safety net for reward
-    private static final long LEAVE_WAIT = 3000L;         // 3s after leave click before closing flight
+    private static final long LEAVE_WAIT = 10000L;        // 10s after leave click before closing flight
     private static final long LEAVE_TIMEOUT = 8000L;      // safety net for leave
     private static final long CLICK_DELAY = 600L;         // 0.6s between menu clicks
     private static final long BUSY_WAIT = 10000L;        // 10s wait when dungeon is busy
