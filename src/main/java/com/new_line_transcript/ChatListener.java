@@ -29,7 +29,7 @@ public class ChatListener {
             DungeonAutomation.killCount++;
             LOG.info("[auto] kill detected (total {})", DungeonAutomation.killCount);
         }
-        if (msg.contains(KEY_REWARD)) {
+        if (msg.contains(KEY_REWARD) && DungeonAutomation.isAtRewardPhase()) {
             DungeonAutomation.rewardSeen = true;
             LOG.info("[auto] reward detected");
         }
@@ -39,7 +39,8 @@ public class ChatListener {
         }
 
         ClickEvent leave = findClickEvent(event.getMessage(), KEY_LEAVE);
-        if (leave != null && leave.getAction() == ClickEvent.Action.RUN_COMMAND) {
+        if (leave != null && leave.getAction() == ClickEvent.Action.RUN_COMMAND
+                && DungeonAutomation.isAtRewardPhase()) {
             Minecraft mc = Minecraft.getMinecraft();
             if (mc.player != null) {
                 LOG.info("[auto] clicking leave link: {}", leave.getValue());

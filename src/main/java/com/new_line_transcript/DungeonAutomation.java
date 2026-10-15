@@ -91,6 +91,13 @@ public class DungeonAutomation {
         state = s;
     }
 
+    // True only while we are at/heading to the reward waypoint C (or leaving).
+    // Chat reward/leave signals are only honored in this phase, so late messages
+    // from a previous run can't leak into the next run's A/B flight.
+    public static boolean isAtRewardPhase() {
+        return state == State.FLY_TO_C || state == State.LEAVE;
+    }
+
     public static void tick(Minecraft mc) {
         if (mc.player == null || mc.world == null) return;
         long now = System.currentTimeMillis();
@@ -149,6 +156,10 @@ public class DungeonAutomation {
             }
             case ENTERING: {
                 if (now - stateStartTime >= WAIT_AFTER_ENTER) {
+                    // Fresh run: discard any reward/leave flags left over from the previous run.
+                    rewardSeen = false;
+                    leaveSent = false;
+                    killCount = 0;
                     setState(State.FLY_TO_A);
                     stateStartTime = now;
                 }
