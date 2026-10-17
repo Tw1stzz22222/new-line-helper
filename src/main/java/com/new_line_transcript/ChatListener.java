@@ -19,6 +19,8 @@ public class ChatListener {
     private static final String KEY_REWARD = "通关奖励已放入背包";
     private static final String KEY_LEAVE = "点击立即离开副本";
     private static final String KEY_BUSY = "同一时间";
+    private static final String KEY_LAUNCH = "已获得启动名额";
+    private static final String KEY_FREQUENT = "同一时刻地牢创建频繁";
 
     @SubscribeEvent
     public void onChat(ClientChatReceivedEvent event) {
@@ -36,6 +38,14 @@ public class ChatListener {
         if (msg.contains(KEY_BUSY)) {
             DungeonAutomation.busySeen = true;
             LOG.info("[auto] busy detected");
+        }
+        if (msg.contains(KEY_LAUNCH)) {
+            DungeonAutomation.launchSeen = true;
+            LOG.info("[auto] launch detected");
+        }
+        if (msg.contains(KEY_FREQUENT)) {
+            DungeonAutomation.frequentSeen = true;
+            LOG.info("[auto] frequent create detected");
         }
 
         ClickEvent leave = findClickEvent(event.getMessage(), KEY_LEAVE);

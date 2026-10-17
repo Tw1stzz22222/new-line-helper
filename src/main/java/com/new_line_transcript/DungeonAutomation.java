@@ -40,7 +40,8 @@ public class DungeonAutomation {
     private static final int C_X = -5, C_Y = 14, C_Z = -8;
 
     private static final double ARRIVE_DIST = 2.0;          // arrival threshold for a goto
-    private static final long WAIT_AFTER_ENTER = 2000L;   // 2s dungeon load
+    private static final long WAIT_AFTER_ENTER = 3000L;   // 3s 等待进入结果
+    private static final long RETRY_WAIT = 12000L;        // 进入失败后 12s 重试
     private static final long WAIT_AT_A = 1000L;          // 1s at waypoint A
     private static final long WAIT_AT_B = 8000L;          // 8s at waypoint B
     private static final long REWARD_TIMEOUT = 60000L;    // safety net for reward
@@ -56,7 +57,7 @@ public class DungeonAutomation {
 
     private enum State {
         FIND_SIGN, SIGN_MENU, WAIT_BUSY, CHALLENGE_FLOOR, CHALLENGE_ANNIHILATE, CHALLENGE_ENTER,
-        ENTERING, FLY_TO_A, FLY_TO_B, FLY_TO_C, LEAVE, FLY_OFF
+        ENTERING, WAIT_RETRY, FLY_TO_A, FLY_TO_B, FLY_TO_C, LEAVE, FLY_OFF
     }
 
     private static State state = State.FIND_SIGN;
@@ -70,6 +71,8 @@ public class DungeonAutomation {
     public static boolean rewardSeen = false;
     public static boolean leaveSent = false;
     public static boolean busySeen = false;
+    public static boolean launchSeen = false;      // 已获得启动名额
+    public static boolean frequentSeen = false;    // 同一时刻地牢创建频繁
 
     public static void reset() {
         state = State.FIND_SIGN;
@@ -81,6 +84,8 @@ public class DungeonAutomation {
         rewardSeen = false;
         leaveSent = false;
         busySeen = false;
+        launchSeen = false;
+        frequentSeen = false;
         LOG.info("[auto] reset to FIND_SIGN");
     }
 
@@ -161,6 +166,8 @@ public class DungeonAutomation {
             }
             case CHALLENGE_ENTER: {
                 if (mc.currentScreen != null && clickByText(mc.currentScreen, BTN_ENTER)) {
+                    launchSeen = false;
+                    frequentSeen = false;
                     setState(State.ENTERING);
                     stateStartTime = now;
                 }
@@ -168,12 +175,29 @@ public class DungeonAutomation {
             }
             case ENTERING: {
                 if (now - stateStartTime >= WAIT_AFTER_ENTER) {
-                    // Fresh run: discard any reward/leave flags left over from the previous run.
-                    rewardSeen = false;
-                    leaveSent = false;
-                    killCount = 0;
-                    setState(State.FLY_TO_A);
-                    stateStartTime = now;
+                    if (launchSeen && !frequentSeen) {
+                        // 进入成功：只出现"已获得启动名额"
+                        LOG.info("[auto] enter success, flying to A");
+                        rewardSeen = false;
+                        leaveSent = false;
+                        killCount = 0;
+                        setState(State.FLY_TO_A);
+                        stateStartTime = now;
+                    } else {
+                        // 进入失败：出现"同一时刻地牢创建频繁"或没收到成功信号
+                        LOG.info("[auto] enter failed (launchSeen={} frequentSeen={}), retry in {}s",
+                                launchSeen, frequentSeen, RETRY_WAIT / 1000);
+                        launchSeen = false;
+                        frequentSeen = false;
+                        setState(State.WAIT_RETRY);
+                        stateStartTime = now;
+                    }
+                }
+                break;
+            }
+            case WAIT_RETRY: {
+                if (now - stateStartTime >= RETRY_WAIT) {
+                    setState(State.FIND_SIGN);
                 }
                 break;
             }
