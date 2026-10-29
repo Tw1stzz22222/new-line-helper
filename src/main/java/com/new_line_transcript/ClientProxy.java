@@ -19,5 +19,6 @@ public class ClientProxy extends CommonProxy {
     public void init() {
         MinecraftForge.EVENT_BUS.register(new ClientEventHandler());
         MinecraftForge.EVENT_BUS.register(new ChatListener());
+        MinecraftForge.EVENT_BUS.register(new HudOverlay());
     }
 }

@@ -48,12 +48,17 @@ public class DungeonAutomation {
     private static final long LEAVE_WAIT = 10000L;        // 10s after leave click before closing flight
     private static final long LEAVE_TIMEOUT = 8000L;      // safety net for leave
     private static final long CLICK_DELAY = 600L;         // 0.6s between menu clicks
+    private static final long MENU_CLICK_TIMEOUT = 5000L; // 5s 菜单点击超时，失败则关菜单重来
     private static final long BUSY_WAIT = 10000L;        // 10s wait when dungeon is busy
 
     private static final String BTN_CHALLENGE = "独立副本挑战";
     private static final String BTN_FLOOR_15 = "第十五层";
-    private static final String BTN_ANNIHILATE = "湮灭";
     private static final String BTN_ENTER = "进入副本";
+
+    // 难度选项，M 键菜单里切换（默认湮灭）
+    public static final String DIFF_ANNIHILATE = "湮灭";
+    public static final String DIFF_SIMPLE = "简单";
+    public static String difficulty = DIFF_ANNIHILATE;
 
     private enum State {
         FIND_SIGN, SIGN_MENU, WAIT_BUSY, CHALLENGE_FLOOR, CHALLENGE_ANNIHILATE, CHALLENGE_ENTER,
@@ -87,13 +92,40 @@ public class DungeonAutomation {
         launchSeen = false;
         frequentSeen = false;
         LOG.info("[auto] reset to FIND_SIGN");
+        sendStateMessage(State.FIND_SIGN);
     }
 
     private static void setState(State s) {
         if (s != state) {
             LOG.info("[auto] state {} -> {}", state, s);
+            sendStateMessage(s);
         }
         state = s;
+        stateStartTime = System.currentTimeMillis();
+    }
+
+    // 在聊天框提示当前自动化在干什么
+    private static void sendStateMessage(State s) {
+        HudOverlay.setState("§b§l[新一线]§r §7" + describeState(s));
+    }
+
+    private static String describeState(State s) {
+        switch (s) {
+            case FIND_SIGN: return "寻找副本告示牌...";
+            case SIGN_MENU: return "打开副本挑战菜单";
+            case WAIT_BUSY: return "副本繁忙，等待重试";
+            case CHALLENGE_FLOOR: return "选择楼层：第十五层";
+            case CHALLENGE_ANNIHILATE: return "选择难度：" + difficulty;
+            case CHALLENGE_ENTER: return "点击进入副本";
+            case ENTERING: return "等待进入副本结果...";
+            case WAIT_RETRY: return "进入失败，等待重试";
+            case FLY_TO_A: return "飞行前往 A 点";
+            case FLY_TO_B: return "飞行前往 B 点";
+            case FLY_TO_C: return "飞行前往 C 点";
+            case LEAVE: return "等待离开副本";
+            case FLY_OFF: return "本轮结束，准备下一轮";
+            default: return "";
+        }
     }
 
     // True only while we are at/heading to the reward waypoint C (or leaving).
@@ -143,6 +175,12 @@ public class DungeonAutomation {
                 }
                 if (mc.currentScreen != null && clickByText(mc.currentScreen, BTN_CHALLENGE)) {
                     setState(State.CHALLENGE_FLOOR);
+                    break;
+                }
+                if (now - stateStartTime >= MENU_CLICK_TIMEOUT) {
+                    LOG.info("[auto] SIGN_MENU click timeout, closing menus and restarting");
+                    closeAllMenus(mc);
+                    setState(State.FIND_SIGN);
                 }
                 break;
             }
@@ -155,12 +193,24 @@ public class DungeonAutomation {
             case CHALLENGE_FLOOR: {
                 if (mc.currentScreen != null && clickByText(mc.currentScreen, BTN_FLOOR_15)) {
                     setState(State.CHALLENGE_ANNIHILATE);
+                    break;
+                }
+                if (now - stateStartTime >= MENU_CLICK_TIMEOUT) {
+                    LOG.info("[auto] CHALLENGE_FLOOR click timeout, closing menus and restarting");
+                    closeAllMenus(mc);
+                    setState(State.FIND_SIGN);
                 }
                 break;
             }
             case CHALLENGE_ANNIHILATE: {
-                if (mc.currentScreen != null && clickByText(mc.currentScreen, BTN_ANNIHILATE)) {
+                if (mc.currentScreen != null && clickByText(mc.currentScreen, difficulty)) {
                     setState(State.CHALLENGE_ENTER);
+                    break;
+                }
+                if (now - stateStartTime >= MENU_CLICK_TIMEOUT) {
+                    LOG.info("[auto] CHALLENGE_ANNIHILATE click timeout, closing menus and restarting");
+                    closeAllMenus(mc);
+                    setState(State.FIND_SIGN);
                 }
                 break;
             }
@@ -170,6 +220,12 @@ public class DungeonAutomation {
                     frequentSeen = false;
                     setState(State.ENTERING);
                     stateStartTime = now;
+                    break;
+                }
+                if (now - stateStartTime >= MENU_CLICK_TIMEOUT) {
+                    LOG.info("[auto] CHALLENGE_ENTER click timeout, closing menus and restarting");
+                    closeAllMenus(mc);
+                    setState(State.FIND_SIGN);
                 }
                 break;
             }
@@ -304,6 +360,15 @@ public class DungeonAutomation {
         setKey(mc.gameSettings.keyBindForward, false);
         setKey(mc.gameSettings.keyBindJump, false);
         setKey(mc.gameSettings.keyBindSneak, false);
+    }
+
+    // 关闭所有打开的菜单。用 displayGuiScreen(null) 强制关闭，比模拟 Esc 键更可靠
+    //（自定义菜单可能不响应 Esc）。
+    private static void closeAllMenus(Minecraft mc) {
+        int guard = 0;
+        while (mc.currentScreen != null && guard++ < 8) {
+            mc.displayGuiScreen(null);
+        }
     }
 
     private static void setKey(KeyBinding kb, boolean pressed) {
