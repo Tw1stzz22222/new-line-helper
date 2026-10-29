@@ -18,6 +18,7 @@ import java.io.IOException;
 public class GuiMenu extends GuiScreen {
 
     private static final int ID_ENABLE = 0;
+    private static final int ID_DIFFICULTY = 1;
     private static final int PANEL_W = 240;
     private static final int PANEL_H = 132;
     private static final char[] GRADIENT = {'3', 'b', 'f'};
@@ -33,13 +34,19 @@ public class GuiMenu extends GuiScreen {
 
         int btnW = 150;
         int btnH = 22;
+        this.buttonList.add(new FlatButton(ID_DIFFICULTY,
+                (this.width - btnW) / 2, panelY + 44, btnW, btnH, "难度: " + DungeonAutomation.difficulty));
         this.buttonList.add(new FlatButton(ID_ENABLE,
-                (this.width - btnW) / 2, panelY + 64, btnW, btnH, "Enable"));
+                (this.width - btnW) / 2, panelY + 70, btnW, btnH, "Enable"));
     }
 
     @Override
     protected void actionPerformed(GuiButton button) throws IOException {
-        if (button.id == ID_ENABLE) {
+        if (button.id == ID_DIFFICULTY) {
+            DungeonAutomation.difficulty = DungeonAutomation.difficulty.equals(DungeonAutomation.DIFF_ANNIHILATE)
+                    ? DungeonAutomation.DIFF_SIMPLE : DungeonAutomation.DIFF_ANNIHILATE;
+            button.displayString = "难度: " + DungeonAutomation.difficulty;
+        } else if (button.id == ID_ENABLE) {
             DungeonAutomation.reset();
             ModState.start();
             if (this.mc.player != null) {

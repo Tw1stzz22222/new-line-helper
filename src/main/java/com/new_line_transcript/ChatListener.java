@@ -21,11 +21,18 @@ public class ChatListener {
     private static final String KEY_BUSY = "同一时间";
     private static final String KEY_LAUNCH = "已获得启动名额";
     private static final String KEY_FREQUENT = "同一时刻地牢创建频繁";
+    private static final String KEY_LV = "LV";
 
     @SubscribeEvent
     public void onChat(ClientChatReceivedEvent event) {
-        if (!ModState.running) return;
         String msg = event.getMessage().getUnformattedText();
+
+        // 含 LV 的玩家信息 → HUD（聊天框保留，不抹去）
+        if (msg.contains(KEY_LV)) {
+            HudOverlay.addLv(event.getMessage().getFormattedText());
+        }
+
+        if (!ModState.running) return;
 
         if (msg.contains(KEY_KILL)) {
             DungeonAutomation.killCount++;
