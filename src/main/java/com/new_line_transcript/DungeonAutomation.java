@@ -50,6 +50,8 @@ public class DungeonAutomation {
     private static final long CLICK_DELAY = 600L;         // 0.6s between menu clicks
     private static final long MENU_CLICK_TIMEOUT = 5000L; // 5s 菜单点击超时，失败则关菜单重来
     private static final long BUSY_WAIT = 10000L;        // 10s wait when dungeon is busy
+    private static final long SIGN_SCAN_INTERVAL = 1000L; // 找告示牌的扫描间隔
+    private static final int SIGN_MISS_LIMIT = 3;         // 连续 3 次扫不到告示牌 → 视为已在副本内
 
     private static final String BTN_CHALLENGE = "独立副本挑战";
     private static final String BTN_FLOOR_15 = "第十五层";
@@ -70,6 +72,8 @@ public class DungeonAutomation {
     private static long lastClickTime = 0L;
     private static long leaveSentTime = 0L;
     private static long arrivedTime = 0L;
+    private static int signMissCount = 0;
+    private static long lastSignScanTime = 0L;
 
     // Chat flags, updated by ChatListener.
     public static int killCount = 0;
@@ -85,6 +89,8 @@ public class DungeonAutomation {
         lastClickTime = 0L;
         leaveSentTime = 0L;
         arrivedTime = 0L;
+        signMissCount = 0;
+        lastSignScanTime = 0L;
         killCount = 0;
         rewardSeen = false;
         leaveSent = false;
@@ -157,12 +163,41 @@ public class DungeonAutomation {
                     setState(State.SIGN_MENU);
                     break;
                 }
+                // 限流：每秒扫一次，不必每 tick 扫 1183 个方块
+                if (now - lastSignScanTime < SIGN_SCAN_INTERVAL) {
+                    break;
+                }
+                lastSignScanTime = now;
                 BlockPos sign = findNearestSign(mc);
                 if (sign != null) {
+                    signMissCount = 0;
                     LOG.info("[auto] right-clicking sign at {}", sign);
                     rightClickBlock(mc, sign);
                     setState(State.SIGN_MENU);
+                    break;
                 }
+                signMissCount++;
+                LOG.warn("[auto] sign not found ({}/{}), will assume already inside at limit",
+                        signMissCount, SIGN_MISS_LIMIT);
+                if (signMissCount >= SIGN_MISS_LIMIT) {
+                    // 已经进副本但没等到进入成功信号时，玩家会被传送走，附近不再有告示牌。
+                    // 连续 3 次扫不到 → 按“已成功进入副本”处理，直接开飞。
+                    LOG.warn("[auto] no sign after {} scans, assume already inside dungeon -> FLY_TO_A", SIGN_MISS_LIMIT);
+                    signMissCount = 0;
+                    rewardSeen = false;
+                    leaveSent = false;
+                    killCount = 0;
+                    launchSeen = false;
+                    frequentSeen = false;
+                    arrivedTime = 0L;
+                    if (mc.player != null) {
+                        mc.player.sendMessage(new TextComponentString(
+                                "§b§l[新一线]§r §e未找到告示牌，按已进入副本处理，开始飞往 A 点"));
+                    }
+                    setState(State.FLY_TO_A);
+                    break;
+                }
+                HudOverlay.setState("§b§l[新一线]§r §7未找到告示牌 " + signMissCount + "/" + SIGN_MISS_LIMIT);
                 break;
             }
             case SIGN_MENU: {
@@ -394,7 +429,7 @@ public class DungeonAutomation {
             }
         }
         if (best == null) {
-            LOG.warn("[auto] no sign found within radius {}", r);
+            LOG.debug("[auto] no sign found within radius {}", r);
         }
         return best;
     }
